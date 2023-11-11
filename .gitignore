@@ -1,0 +1,9 @@
+.vscode
+Include
+Scripts
+tkinter_examples
+Lib
+pyvenv.cfg
+__pycache__
+src/**
+!src/*.py
