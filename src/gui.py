@@ -1,4 +1,4 @@
-import funlist as f
+import valstats as vs
 import tkinter as tk
 import re
 from tkinter import ttk
@@ -38,7 +38,7 @@ class ChapterPrinter(tk.Tk):
         self.title("Chapter Printer")
         
         self.puuid: str | None = None
-        self.chapterStr: f.MatchStats | None = None
+        self.chapterStr: vs.MatchStats | None = None
         self.startTime: int | None = None
 
         # the container is where we'll stack a bunch of frames
@@ -100,8 +100,8 @@ class GTEntryPage(tk.Frame):
             return
         elif self.riotID != self.rIDentry.get().rstrip():
             try:
-                username, tagline = f.str_to_user_gt(self.rIDentry.get())
-                self.controller.puuid = f.gt_to_puuid(username, tagline)
+                username, tagline = vs.str_to_user_gt(self.rIDentry.get())
+                self.controller.puuid = vs.gt_to_puuid(username, tagline)
                 self.riotID = self.rIDentry.get().rstrip()
             except Exception as e:
                 self.warningStr.set(f"Error: {e}")
@@ -173,7 +173,7 @@ class MatchEntryPage(tk.Frame):
                 self.warningStr.set("Invalid time format: incorrect segments")
                 return
         try:
-            tempMatchStats = f.MatchStats(matchID, self.controller.puuid)
+            tempMatchStats = vs.MatchStats(matchID, self.controller.puuid)
         except Exception as e:
             self.warningStr.set(f"Error: {e}")
             return
