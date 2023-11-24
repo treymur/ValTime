@@ -5,7 +5,7 @@ import customtkinter as ctk
 
 
 class ChapterPrinter(ctk.CTk):
-
+    """Window of program"""
     def __init__(self, *args, **kwargs):
         ctk.CTk.__init__(self, *args, **kwargs)
         self.title("Chapter Printer")
@@ -15,9 +15,7 @@ class ChapterPrinter(ctk.CTk):
         self.chapterStr: vf.MatchStats | None = None
         self.startTime: int | None = None
 
-        # the container is where we'll stack a bunch of frames
-        # on top of each other, then the one we want visible
-        # will be raised above the others
+
         container = ctk.CTkFrame(self)
         container.pack(side="top", fill="both", expand=True)
         container.grid_rowconfigure(0, weight=1)
@@ -38,13 +36,14 @@ class ChapterPrinter(ctk.CTk):
         frame = self.frames[page_name]
         frame.tkraise()
     
-    def copy_to_clipboard(self, field):
+    def copy_to_clip(self, field):
         '''Copy the given field value to the clipboard'''
         self.clipboard_clear()
         self.clipboard_append(field.get("1.0", ctk.END).rstrip())
 
 
 class GTEntryPage(ctk.CTkFrame):
+    """First page of program, for entering Riot ID"""
     def __init__(self, parent, controller):
         ctk.CTkFrame.__init__(self, parent)
         self.controller = controller
@@ -86,6 +85,7 @@ class GTEntryPage(ctk.CTkFrame):
 
 
 class MatchEntryPage(ctk.CTkFrame):
+    """Match and time entry page"""
     def __init__(self, parent, controller):
         ctk.CTkFrame.__init__(self, parent)
         self.controller = controller
@@ -166,11 +166,12 @@ class MatchEntryPage(ctk.CTkFrame):
         self.timeEntry.delete(0, ctk.END)
 
 class ChaptersPage(ctk.CTkFrame):
+    """Chapters page to copy chapters to clipboard"""
     def __init__(self, parent, controller):
         ctk.CTkFrame.__init__(self, parent)
         self.controller = controller
         
-        buttonCopy = ctk.CTkButton(self, text="Copy to clipboard", command=lambda: controller.copy_to_clipboard(self.textChapters))
+        buttonCopy = ctk.CTkButton(self, text="Copy to clipboard", command=lambda: controller.copy_to_clip(self.textChapters))
         buttonCopy.grid(row=1, column=1, pady=10)
         
         buttonBack = ctk.CTkButton(self, text="New match", command=self._go_back)
