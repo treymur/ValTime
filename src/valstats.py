@@ -7,8 +7,11 @@ from io import BytesIO
 from PIL import Image, ImageTk
 
 def url_to_ImageTk(url, width=None, height=None) -> ImageTk.PhotoImage:
-    response = urllib.request.urlopen(url)
-    image = Image.open(BytesIO(response.read()))
+    try:
+        response = urllib.request.urlopen(url)
+        image = Image.open(BytesIO(response.read()))
+    except Exception as e:
+        raise ImageFetchError(f"Failed to fetch image from {url}") from e
     response.close()
     if width is not None and height is not None:
         image = image.resize((width, height), Image.LANCZOS)
@@ -18,7 +21,11 @@ def url_to_ImageTk(url, width=None, height=None) -> ImageTk.PhotoImage:
 def str_to_user_gt(string):
     strlist = string.rstrip().split('#')
     if len(strlist) != 2:
-        raise Exception(f'Error: {string} is not a valid username and tagline')
+        raise ValueError(f'Error: {string} is not a valid username and tagline')
+    if len(strlist[0]) < 3 or len(strlist[0]) > 16:
+        raise ValueError(f'Error: {strlist[0]} is not a valid username')
+    if len(strlist[1]) < 3 or len(strlist[1]) > 5:
+        raise ValueError(f'Error: {strlist[1]} is not a valid tagline')
     return strlist[0], strlist[1]
     
 
@@ -92,7 +99,7 @@ class MatchStats:
                 player = player_data
                 break
         if player is None:
-            raise Exception(f"Player {player_puuid} not found in match {match_id}")
+            raise ValueError(f"Player {player_puuid} not found in match {match_id}")
         self.playerTeam = player["team"]
         teamToLower = self.playerTeam.lower()
         self.map = data["metadata"]["map"]
@@ -224,6 +231,10 @@ class MatchStats:
             output += '\n'
         return output
 
+
+class ImageFetchError(Exception):
+    """Raised when fetching an image from a URL fails."""
+    pass
 
 
 if __name__ == '__main__':
