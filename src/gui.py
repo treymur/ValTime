@@ -9,6 +9,7 @@ class ChapterPrinter(ctk.CTk):
     def __init__(self, *args, **kwargs):
         ctk.CTk.__init__(self, *args, **kwargs)
         self.title("Chapter Printer")
+        self.geometry("400x240+100+100")
         
         self.puuid: str | None = None
         self.chapterStr: vf.MatchStats | None = None
@@ -51,7 +52,7 @@ class GTEntryPage(ctk.CTkFrame):
         self.riotID: str | None = None
         
         rIDlabel = ctk.CTkLabel(self, text="Riot ID:")
-        rIDlabel.grid(row=1, column=1, pady=10)
+        rIDlabel.grid(row=1, column=1, pady=10, padx=5)
         
         self.rIDentry = ctk.CTkEntry(self, placeholder_text="username#TAG")
         self.rIDentry.grid(row=1, column=2, pady=10)
@@ -100,11 +101,11 @@ class MatchEntryPage(ctk.CTkFrame):
         timeLabel.grid(row=2, column=1, pady=10)
         
         self.timeEntry = ctk.CTkEntry(self, placeholder_text="h:mm:ss / mm:ss / sss")
-        self.timeEntry.grid(row=2, column=2, pady=10)
+        self.timeEntry.grid(row=2, column=2, pady=(0, 10))
         self.timeEntry.bind("<Return>", self._lookup_match)
         
         buttonBack = ctk.CTkButton(self, text="Go back", command=lambda: self.controller.show_frame("GTEntryPage"))
-        buttonBack.grid(row=3, column=1)
+        buttonBack.grid(row=3, column=1, padx=(0, 5))
         
         buttonEnter = ctk.CTkButton(self, text="Enter", command=self._lookup_match)
         buttonEnter.grid(row=3, column=2)
@@ -170,12 +171,12 @@ class ChaptersPage(ctk.CTkFrame):
         self.controller = controller
         
         buttonCopy = ctk.CTkButton(self, text="Copy to clipboard", command=lambda: controller.copy_to_clipboard(self.textChapters))
-        buttonCopy.grid(row=1, column=1)
+        buttonCopy.grid(row=1, column=1, pady=10)
         
         buttonBack = ctk.CTkButton(self, text="New match", command=self._go_back)
-        buttonBack.grid(row=1, column=2)
+        buttonBack.grid(row=1, column=2, pady=10)
         
-        self.textChapters = ctk.CTkTextbox(self, width=300, height=200, state="disabled")
+        self.textChapters = ctk.CTkTextbox(self, width=300, height=180, state="disabled")
         self.textChapters.grid(row=2, column=1, columnspan=2)
         
         self.grid_columnconfigure(0, weight=1)
@@ -195,8 +196,7 @@ class ChaptersPage(ctk.CTkFrame):
 
 
 
-
-win = ChapterPrinter()
-win.geometry("400x240+100+100")
-win.mainloop()
+if __name__ == "__main__":
+    win = ChapterPrinter()
+    win.mainloop()
 
