@@ -1,4 +1,5 @@
 import valstats as vs
+# import urltkpic
 import tkinter as tk
 import re
 from tkinter import ttk
