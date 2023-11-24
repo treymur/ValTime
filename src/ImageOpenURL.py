@@ -5,7 +5,7 @@ import urllib.request
 from io import BytesIO
 from PIL import Image, ImageTk
 
-def url_to_ImageTk(url, width=None, height=None) -> ImageTk.PhotoImage:
+def url_to_Image(url, width=None, height=None) -> Image:
     try:
         response = urllib.request.urlopen(url)
         image = Image.open(BytesIO(response.read()))
@@ -14,8 +14,7 @@ def url_to_ImageTk(url, width=None, height=None) -> ImageTk.PhotoImage:
     response.close()
     if width is not None and height is not None:
         image = image.resize((width, height), Image.LANCZOS)
-    photo = ImageTk.PhotoImage(image)
-    return photo
+    return image
 
 
 class ImageFetchError(Exception):

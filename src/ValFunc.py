@@ -13,12 +13,26 @@ def str_to_user_gt(string):
         raise ValueError(f'Error: {strlist[1]} is not a valid tagline')
     return strlist[0], strlist[1]
     
-
 def getJSON(url):
-    r = requests.get(url)
-    if r.status_code != 200:
-        raise Exception(f'Error fetching {url}: {r.status_code}')
-    return json.loads(r.text)
+    try:
+        jsonOut = None
+        r = requests.get(url, timeout=5)
+        jsonOut = json.loads(r.text)
+        r.raise_for_status()
+    except requests.exceptions.HTTPError as he:
+        if jsonOut is not None:
+            raise APIError(jsonOut) from he
+        else:
+            raise RequestError(f'HTTP Error: {he}') from he
+    except requests.exceptions.ConnectionError as ce:
+        raise RequestError('Connection Error') from ce
+    except requests.exceptions.Timeout as te:
+        raise RequestError('Timeout') from te
+    except requests.exceptions.RequestException as re:
+        raise RequestError('Error') from re
+    except ValueError as ve:
+        raise RequestError('Response not valid JSON') from ve
+    return jsonOut
 
 def gt_to_puuid(username, tagline):
     return getJSON(f'https://api.henrikdev.xyz/valorant/v1/account/{username}/{tagline}')["data"]["puuid"]
@@ -84,7 +98,7 @@ class MatchStats:
                 player = player_data
                 break
         if player is None:
-            raise ValueError(f"Player {player_puuid} not found in match {match_id}")
+            raise ValueError(f"Selected player not found in given match ID")
         self.playerTeam = player["team"]
         teamToLower = self.playerTeam.lower()
         self.map = data["metadata"]["map"]
@@ -217,6 +231,17 @@ class MatchStats:
         return output
 
 
+class APIError(Exception):
+    def __init__(self, json):
+        self.json = json
+        self.status = json.get('status', 'Unknown Status')
+        self.message = 'API error occurred'
+        if self.status != 'Unknown Status':
+            self.message = f'API Error: {self.status} - {json.get("errors", [{}])[0].get("message", "Unknown error")}'
+        super().__init__(self.message)
+
+class RequestError(Exception):
+    pass
 
 
 
