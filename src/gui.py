@@ -127,7 +127,6 @@ class MatchEntryPage(ctk.CTkFrame):
             return
         
         if not self.timeEntry.get(): # if empty
-            self.warningStr.set("Please enter time")
             self.controller.startTime = 60
         else:
             time = self.timeEntry.get().rstrip().split(':')
