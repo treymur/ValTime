@@ -67,7 +67,22 @@ class Kill:
     enemiesLeft: int
 
 @dataclass
+class RoundStats:
+    startTime: int # in terms of matchTime (ms)
+    length: int # in terms of milliseconds
+    endType: str # how round ended (Eliminated, Bomb defused, Bomb detonated, Round timer expired)
+    kills: list[Kill] # kill times in milliseconds
+    scoreUptoRound: str # score before this round (current player first)
+    isKills: bool # if any kills were made
+
+@dataclass
+class PlayerRoundStats:
+    numKills: int # kills by current player
+    isClutch: bool # if player clutched
+
+@dataclass
 class PlayerStats:
+    playerTeam: str # Blue if started defenses, otherwise Red
     win: bool # if player won or not
     acs: int
     kills: int
@@ -76,17 +91,7 @@ class PlayerStats:
     curRank: str
     competitiveTier: int
     agent: str
-
-@dataclass
-class RoundStats:
-    startTime: int # in terms of matchTime (ms)
-    length: int # in terms of milliseconds
-    endType: str # how round ended (Eliminated, Bomb defused, Bomb detonated, Round timer expired)
-    kills: list[Kill] # kill times in milliseconds
-    scoreUptoRound: str # score before this round (current player first)
-    numKills: int # kills by current player
-    isClutch: bool # if player clutched
-    isKills: bool # if any kills were made
+    rounds: list[PlayerRoundStats]
 
 
 class MatchStats:
@@ -99,24 +104,15 @@ class MatchStats:
                 break
         if player is None:
             raise ValueError(f"Selected player not found in given match ID")
-        self.playerTeam = player["team"]
-        teamToLower = self.playerTeam.lower()
+        playerTeam = player["team"]
+        teamToLower = playerTeam.lower()
         self.map = data["metadata"]["map"]
         self.rounds = []
         self.chapterTimes = []
-        self.playerStats = PlayerStats(
-            data["teams"][teamToLower]["has_won"],
-            round(player["stats"]["score"] / data["metadata"]["rounds_played"]),
-            player["stats"]["kills"],
-            player["stats"]["deaths"],
-            player["stats"]["assists"],
-            player["currenttier_patched"],
-            player["currenttier"],
-            player["character"]
-        )
         # Get round stats
         playerTeamScore = 0
         enemyTeamScore = 0
+        playerRoundStats = []
         for i in range(data["metadata"]["rounds_played"]):
             round_kills = []
             curRound = data["rounds"][i]
@@ -129,7 +125,7 @@ class MatchStats:
                     enemLeft = 0
                     isPlayerAlive = False
                     for playerLocation in kill["player_locations_on_kill"]:
-                        if playerLocation["player_team"] == self.playerTeam:
+                        if playerLocation["player_team"] == playerTeam:
                             teamLeft += 1
                             if playerLocation["player_puuid"] == player["puuid"]:
                                 isPlayerAlive = True
@@ -176,7 +172,7 @@ class MatchStats:
                     break
             # Get score before round
             round_scoreUptoRound = f'{playerTeamScore}-{enemyTeamScore}'
-            if curRound["winning_team"] == self.playerTeam:
+            if curRound["winning_team"] == playerTeam:
                 playerTeamScore += 1
                 wonRound = True
             else:
@@ -193,20 +189,35 @@ class MatchStats:
                 round_endType,
                 round_kills,
                 round_scoreUptoRound,
-                round_numKills,
-                round_isClutch,
                 round_isKills
+            ))
+            playerRoundStats.append(PlayerRoundStats(
+                round_numKills,
+                round_isClutch
             ))
             # get and push chapter time
             if i == 0:
                 self.chapterTimes.append(round(round_startTime / 1_000) - 45)
             else:
                 self.chapterTimes.append(round(round_startTime / 1_000) - 30)
+        self.playerStats = PlayerStats(
+            playerTeam,
+            data["teams"][teamToLower]["has_won"],
+            round(player["stats"]["score"] / data["metadata"]["rounds_played"]),
+            player["stats"]["kills"],
+            player["stats"]["deaths"],
+            player["stats"]["assists"],
+            player["currenttier_patched"],
+            player["currenttier"],
+            player["character"],
+            playerRoundStats
+        )
 
     def get_chapters(self, startTimeSec=60):
         output = f'{self.playerStats.agent} {self.map} {self.playerStats.curRank}\n'
         for i in range(len(self.rounds)):
             curRound = self.rounds[i]
+            playerCurRound = self.playerStats.rounds[i]
             sec = startTimeSec - 45 + self.chapterTimes[i] - self.chapterTimes[0]
             if i == 12:
                 sec -= 15
@@ -224,8 +235,8 @@ class MatchStats:
                 output += f'{min}'
             else:
                 output += f'{hr}:{min:02d}'
-            output += f':{sec:02d} Round {i+1} | {curRound.scoreUptoRound} | {curRound.numKills}k'
-            if curRound.isClutch:
+            output += f':{sec:02d} Round {i+1} | {curRound.scoreUptoRound} | {playerCurRound.numKills}k'
+            if playerCurRound.isClutch:
                 output += ' | CLUTCH'
             output += '\n'
         return output
