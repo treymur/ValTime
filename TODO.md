@@ -4,6 +4,7 @@
     - MatchStats impliments init with "data" from api
     - MatchStats impliments getChapters (checks for type)
     - In init for MatchStats subclasses, super.init(data)
+    - TEST ALL OF ABOVE
     - Pick side
         - Check box in matchID window
         - Select side while choosing to omit user
