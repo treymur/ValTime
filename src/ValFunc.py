@@ -63,8 +63,28 @@ def list_last_matches(puuid_or_username, tagline=None, region=None):
 class Kill:
     timeInRound: int
     timeInMatch: int
+    killer_puuid: str
+    killer_team: str
+    victim_puuid: str
+    victim_team: str
     teammatesLeft: int
     enemiesLeft: int
+    playersLeft: list[str] # player puuids
+
+@dataclass
+class RoundStats:
+    win: bool # if player/team won or not
+    startTime: int # in terms of matchTime (ms)
+    length: int # in terms of milliseconds
+    endType: str # how round ended (Eliminated, Bomb defused, Bomb detonated, Round timer expired)
+    kills: list[Kill] # kill times in milliseconds
+    scoreUptoRound: str # score before this round (current player first)
+    isKills: bool # if any kills were made
+
+@dataclass
+class PlayerRoundStats:
+    numKills: int # kills by current player
+    isClutch: bool # if player clutched
 
 @dataclass
 class PlayerStats:
@@ -76,88 +96,56 @@ class PlayerStats:
     curRank: str
     competitiveTier: int
     agent: str
+    rounds: list[PlayerRoundStats]
 
-@dataclass
-class RoundStats:
-    startTime: int # in terms of matchTime (ms)
-    length: int # in terms of milliseconds
-    endType: str # how round ended (Eliminated, Bomb defused, Bomb detonated, Round timer expired)
-    kills: list[Kill] # kill times in milliseconds
-    scoreUptoRound: str # score before this round (current player first)
-    numKills: int # kills by current player
-    isClutch: bool # if player clutched
-    isKills: bool # if any kills were made
 
 
 class MatchStats:
-    def __init__(self, match_id, player_puuid):
-        data = getJSON(f'https://api.henrikdev.xyz/valorant/v2/match/{match_id}')["data"]
-        player = None
-        for player_data in data["players"]["all_players"]:
-            if player_data["puuid"] == player_puuid:
-                player = player_data
-                break
-        if player is None:
-            raise ValueError(f"Selected player not found in given match ID")
-        self.playerTeam = player["team"]
-        teamToLower = self.playerTeam.lower()
-        self.map = data["metadata"]["map"]
-        self.rounds = []
-        self.chapterTimes = []
-        self.playerStats = PlayerStats(
-            data["teams"][teamToLower]["has_won"],
-            round(player["stats"]["score"] / data["metadata"]["rounds_played"]),
-            player["stats"]["kills"],
-            player["stats"]["deaths"],
-            player["stats"]["assists"],
-            player["currenttier_patched"],
-            player["currenttier"],
-            player["character"]
-        )
-        # Get round stats
-        playerTeamScore = 0
-        enemyTeamScore = 0
+    def __init__(self, data, curTeam):
+        self.map: str = data["metadata"]["map"]
+        self.rounds: list[RoundStats] = []
+        self.chapterTimes: list[int] = []
+        curTeamScore = 0
+        oppTeamScore = 0
         for i in range(data["metadata"]["rounds_played"]):
-            round_kills = []
+            round_kills: list[Kill] = []
             curRound = data["rounds"][i]
-            # Get kill stats
-            playerClutchPos = False # player starts in non clutch position
+            # GET round kills
             for kill in data["kills"]:
                 if kill["round"] == i:
-                    # find how many people are left at kill time
                     teamLeft = 0
                     enemLeft = 0
-                    isPlayerAlive = False
+                    playerList = []
                     for playerLocation in kill["player_locations_on_kill"]:
-                        if playerLocation["player_team"] == self.playerTeam:
+                        if playerLocation["player_team"] == curTeam:
                             teamLeft += 1
-                            if playerLocation["player_puuid"] == player["puuid"]:
-                                isPlayerAlive = True
                         else:
                             enemLeft += 1
-                    if isPlayerAlive and teamLeft == 1 and enemLeft > 1 and not playerClutchPos:
-                        playerClutchPos = True
-                        playerClutchPosTime = kill["kill_time_in_round"]
-                    # Push kill stats
+                        playerList.append(playerLocation["player_puuid"])
                     round_kills.append(Kill(
                         kill["kill_time_in_round"],
                         kill["kill_time_in_match"],
+                        kill["killer_puuid"],
+                        kill["killer_team"],
+                        kill["victim_puuid"],
+                        kill["victim_team"],
                         teamLeft,
-                        enemLeft
+                        enemLeft,
+                        playerList
                     ))
-            round_isKills = round_kills
-            # Get end type
+            round_isKills = len(round_kills) > 0
+            # GET end type
             round_endType = curRound["end_type"]
-            # Get round lenght
-            if round_endType == "Eliminated":
+            # GET round length
+            if round_endType == 'Eliminated':
                 round_length = round_kills[-1].timeInRound
-            elif round_endType == "Bomb defused":
+            elif round_endType == 'Bomb defused':
                 round_length = curRound["defuse_events"]["defuse_time_in_round"]
-            elif round_endType == "Bomb detonated":
+            elif round_endType == 'Bomb detonated':
                 round_length = curRound["plant_events"]["plant_time_in_round"] + 45_000 # 45 seconds after plant time
             else:
                 round_length = 100_000 # round timer expired (100 seconds, 1:40 minutes)
-            # Get round start time
+            # GET round start time
             if round_isKills:
                 round_startTime = round_kills[0].timeInMatch - round_kills[0].timeInRound
             elif i == 0:
@@ -166,45 +154,34 @@ class MatchStats:
                 round_startTime = self.rounds[i-1].startTime + self.rounds[i-1].length + 52_000 # post-round (7 sec) + halftime (45 sec)
             else:
                 round_startTime = self.rounds[i-1].startTime + self.rounds[i-1].length + 37_000 # post-round (7 sec) + pre-round (30 sec)
-            # Get player kills
-            for playerStat in curRound["player_stats"]:
-                if playerStat["player_puuid"] == player_puuid:
-                    round_numKills = playerStat["kills"]
-                    for killEvent in playerStat["kill_events"]:
-                        if killEvent["killer_team"] == killEvent["victim_team"]:
-                            round_numKills -= 1 # subtract team kills
-                    break
-            # Get score before round
-            round_scoreUptoRound = f'{playerTeamScore}-{enemyTeamScore}'
-            if curRound["winning_team"] == self.playerTeam:
-                playerTeamScore += 1
-                wonRound = True
+            # GET score before round
+            round_scoreUptoRound = f'{curTeamScore} - {oppTeamScore}'
+            if curRound["winning_team"] == curTeam:
+                curTeamScore += 1
+                round_won = True
             else:
-                enemyTeamScore += 1
-                wonRound = False
-            if playerClutchPos and wonRound and playerClutchPosTime < round_length:
-                round_isClutch = True
-            else:
-                round_isClutch = False
-            # push round stats
+                oppTeamScore += 1
+                round_won = False
+            # PUSH round stats
             self.rounds.append(RoundStats(
+                round_won,
                 round_startTime,
                 round_length,
                 round_endType,
                 round_kills,
                 round_scoreUptoRound,
-                round_numKills,
-                round_isClutch,
                 round_isKills
             ))
-            # get and push chapter time
+            # GET and PUSH chapter time
             if i == 0:
                 self.chapterTimes.append(round(round_startTime / 1_000) - 45)
             else:
                 self.chapterTimes.append(round(round_startTime / 1_000) - 30)
-
-    def get_chapters(self, startTimeSec=60):
-        output = f'{self.playerStats.agent} {self.map} {self.playerStats.curRank}\n'
+    
+    def get_chapters(self, startTimeSec=60, title=None, postfixList=None):
+        output = ''
+        if title is not None:
+            output += f'{title}\n'
         for i in range(len(self.rounds)):
             curRound = self.rounds[i]
             sec = startTimeSec - 45 + self.chapterTimes[i] - self.chapterTimes[0]
@@ -224,11 +201,69 @@ class MatchStats:
                 output += f'{min}'
             else:
                 output += f'{hr}:{min:02d}'
-            output += f':{sec:02d} Round {i+1} | {curRound.scoreUptoRound} | {curRound.numKills}k'
-            if curRound.isClutch:
-                output += ' | CLUTCH'
+            output += f':{sec:02d} Round {i+1} | {curRound.scoreUptoRound}'
+            if postfixList is not None:
+                output += f' | {postfixList[i]}'
             output += '\n'
         return output
+
+
+class PlayerMatchStats(MatchStats):
+    def __init__(self, match_id, player_puuid):
+        data = getJSON(f'https://api.henrikdev.xyz/valorant/v2/match/{match_id}')["data"]
+        player = None
+        for player_data in data["players"]["all_players"]:
+            if player_data["puuid"] == player_puuid:
+                player = player_data
+                break
+        if player is None:
+            raise ValueError(f"Selected player not found in given match ID")
+        self.team: str = player["team"]
+        super().__init__(data, self.team)
+        playerRoundsStats: list[PlayerRoundStats] = []
+        for curRound in self.rounds:
+            playerKills = 0
+            playerClutchPos = False
+            for kill in curRound.kills:
+                if kill.killer_puuid == player_puuid and kill.victim_team != self.team:
+                    playerKills += 1
+                isPlayerAlive = False
+                for puuid in kill.playersLeft:
+                    if puuid == player_puuid:
+                        isPlayerAlive = True
+                        break
+                if isPlayerAlive and kill.teammatesLeft == 1 and kill.enemiesLeft > 1 and not playerClutchPos:
+                    playerClutchPos = True
+                    playerClutchPosTime = kill.timeInRound
+            if playerClutchPos and curRound.win and playerClutchPosTime < curRound.length:
+                isClutch = True 
+            else:
+                isClutch = False
+            playerRoundsStats.append(PlayerRoundStats(
+                playerKills,
+                isClutch
+            ))
+        self.playerStats = PlayerStats(
+            data["teams"][self.team.lower()]["has_won"],
+            round(player["stats"]["score"] / data["metadata"]["rounds_played"]),
+            player["stats"]["kills"],
+            player["stats"]["deaths"],
+            player["stats"]["assists"],
+            player["currenttier_patched"],
+            player["currenttier"],
+            player["character"],
+            playerRoundsStats
+        )
+    
+    def get_chapters(self, startTimeSec=60):
+        title = f'{self.playerStats.agent} {self.map} {self.playerStats.curRank}'
+        lineList: list[str] = []
+        for round in self.playerStats.rounds:
+            line = f'{round.numKills}k'
+            if round.isClutch:
+                line += ' | CLUTCH'
+            lineList.append(line)
+        return super().get_chapters(startTimeSec, title, lineList)
 
 
 class APIError(Exception):

@@ -1,6 +1,13 @@
 # TODO
-- Create specific exeptions for better errors
+- option to continue without player (team chapters)
+    - split MatchStats into two classes
+    - MatchStats impliments init with "data" from api
+    - MatchStats impliments getChapters (checks for type)
+    - In init for MatchStats subclasses, super.init(data)
+    - TEST ALL OF ABOVE
+    - Pick side
+        - Check box in matchID window
+        - Select side while choosing to omit user
+- show last matches with stats
 - look into threading/loading indicators when using network functions
 - create installer
-
-- style UI

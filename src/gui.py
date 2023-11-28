@@ -11,9 +11,9 @@ class ChapterPrinter(ctk.CTk):
         self.title("Chapter Printer")
         self.geometry("400x240+100+100")
         
-        self.puuid: str | None = None
-        self.chapterStr: vf.MatchStats | None = None
-        self.startTime: int | None = None
+        self.puuid: str = ''
+        self.matchStats: vf.PlayerMatchStats | None = None
+        self.startTime: int = 60
 
 
         container = ctk.CTkFrame(self)
@@ -80,6 +80,7 @@ class GTEntryPage(ctk.CTkFrame):
                 self.warningStr.set(e)
                 return
         self.controller.show_frame("MatchEntryPage")
+        self.warningStr.set("")
     
             
 
@@ -147,13 +148,14 @@ class MatchEntryPage(ctk.CTkFrame):
                 self.warningStr.set("Invalid time format: incorrect segments")
                 return
         try:
-            tempMatchStats = vf.MatchStats(matchID, self.controller.puuid)
+            tempMatchStats = vf.PlayerMatchStats(matchID, self.controller.puuid)
         except Exception as e:
             self.warningStr.set(e)
             return
         self.controller.matchStats = tempMatchStats
         self.controller.frames["ChaptersPage"].update_text()
         self.controller.show_frame("ChaptersPage")
+        self.warningStr.set("")
     
     def _verify_match_id_format(self, match_id):
         pattern = re.compile(r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$")
