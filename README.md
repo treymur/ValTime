@@ -16,8 +16,8 @@ To run Chapter Printer, you'll need Python installed on your system. The applica
 1. Clone the repository to your local machine:
 
    ```bash
-   git clone https://your-repository-url.git
-   cd path-to-cloned-repo
+   git clone https://github.com/treymur/ValTime.git
+   cd ValTime
    ```
 
 2. Install the required dependencies:
